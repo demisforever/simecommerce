@@ -17,7 +17,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
     if (loading) return // Aún cargando
 
     if (!user) {
-      router.push("/auth/signin")
+      router.push("/auth/signin?callbackUrl=" + encodeURIComponent(window.location.pathname))
       return
     }
 
@@ -38,7 +38,18 @@ export function AdminGuard({ children }: AdminGuardProps) {
     )
   }
 
-  if (!user || user.role !== "admin") {
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p>Redirigiendo al login...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (user.role !== "admin") {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">

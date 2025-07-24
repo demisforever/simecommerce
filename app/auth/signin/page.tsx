@@ -2,8 +2,8 @@
 
 import type React from "react"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,7 +18,23 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState("")
   const router = useRouter()
-  const { login } = useAuth()
+  const searchParams = useSearchParams()
+  const { login, user } = useAuth()
+
+  const callbackUrl = searchParams.get("callbackUrl") || "/"
+
+  // Si ya está logueado, redirigir
+  useEffect(() => {
+    if (user) {
+      if (user.role === "admin" && callbackUrl.startsWith("/admin")) {
+        router.push(callbackUrl)
+      } else if (user.role === "admin") {
+        router.push("/admin/dashboard")
+      } else {
+        router.push(callbackUrl === "/admin/dashboard" ? "/" : callbackUrl)
+      }
+    }
+  }, [user, router, callbackUrl])
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,15 +45,23 @@ export default function SignInPage() {
       const success = await login(email, password)
 
       if (success) {
-        // Verificar el rol del usuario
-        const response = await fetch("/api/auth/session")
-        const data = await response.json()
-
-        if (data.user?.role === "admin") {
-          router.push("/admin/dashboard")
-        } else {
-          router.push("/")
-        }
+        // Esperar un poco para que el contexto se actualice
+        setTimeout(() => {
+          // Verificar el rol del usuario para redirigir correctamente
+          const response = fetch("/api/auth/session")
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.user?.role === "admin") {
+                if (callbackUrl.startsWith("/admin")) {
+                  router.push(callbackUrl)
+                } else {
+                  router.push("/admin/dashboard")
+                }
+              } else {
+                router.push(callbackUrl === "/admin/dashboard" ? "/" : callbackUrl)
+              }
+            })
+        }, 100)
       } else {
         setError("Credenciales inválidas. Verifica tu email y contraseña.")
       }
@@ -70,6 +94,9 @@ export default function SignInPage() {
           />
           <h2 className="mt-6 text-3xl font-bold text-gray-900">Iniciar Sesión</h2>
           <p className="mt-2 text-sm text-gray-600">Accede a tu cuenta de SimEcommerce</p>
+          {callbackUrl !== "/" && (
+            <p className="mt-1 text-xs text-blue-600">Necesitas iniciar sesión para acceder a esta página</p>
+          )}
         </div>
 
         <Card>
